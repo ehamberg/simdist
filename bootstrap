@@ -1,0 +1,90 @@
+#!/bin/sh
+# Run this to generate all the initial makefiles
+
+# I've added some extra outputs for debugging.  Especially, echo path,
+# and set store/bin first, because the autotools in /local/bin don't
+# function well.  ...not any more, this is done in ~/.bashrc.
+# PATH=/store/bin:`echo $PATH | sed -e's/\/store\/bin//g`
+# export PATH
+# echo Trying to force /store/bin before /local/bin. PATH is now:
+# echo $PATH
+# echo
+
+LIBTOOL=libtool
+LIBTOOLIZE=libtoolize
+case `uname -s` in
+	Darwin) 
+		LIBTOOL=glibtool
+		LIBTOOLIZE=glibtoolize;;
+esac
+
+export LIBTOOL
+export LIBTOOLIZE
+
+# aclocal creates local environment for automake and autoconf.  Checks
+# m4 macro environment set up properly.
+# type aclocal
+# aclocal --version
+# aclocal
+
+# libtoolize enables libtool functionality in automake
+# type libtoolize
+# libtoolize --version
+# libtoolize --automake
+
+# automake turns Makefile.am's into Makefile.in's
+# type automake
+# automake --version
+# automake -a
+
+# autoconf turns the configure.ac file into a configure shell script.
+# type autoconf
+# autoconf --version
+# autoconf
+
+if [ $# -eq 0 ]; then
+#   Below is how they propose to do it in "Autoconf, Automake and
+#   Libtool", chapter 8, Bootstrapping.  I guess the point of this
+#   construct is that it will stop further execution if one of the tools
+#   fails.
+
+#   Note that autoheader must presumably be run before automake
+#   (as opposed to what they do in the above book?).  autoheader
+#   generates config.h.in, which is necessary for automake to
+#   succeed.
+
+#   Added a test for aclocal.m4 existence before running aclocal.
+#   Only really useful for debugging the configure.in script.
+#    ( test -f aclocal.m4 || aclocal -I config ) \
+        echo "Running 'aclocal -I config'..." \
+        && aclocal -I config \
+	&& echo "Running '$LIBTOOLIZE --automake'..." \
+	&& $LIBTOOLIZE --automake \
+	&& echo "Running 'autoheader'..." \
+	&& autoheader \
+	&& echo "Running 'automake --warnings=all --gnu --add-missing --copy'..." \
+	&& automake --warnings=all --gnu --add-missing --copy \
+	&& echo "Running 'autoconf'..." \
+	&& autoconf
+elif [ "$1" = "-r" ]; then
+#   Whereas this is how they (same "they" as above) actually (seem to)
+#   do it in chapter 9.2.3, "Beginnings of a `configure.in'".  This
+#   doesn't correctly produces the necessary files in some cases, for
+#   instance if a new Makefile.am has been added.
+    autoreconf -fvi
+else
+    echo "If run without options, do a full bootstrap.  If run with
+    option -r, do 'autoreconf -fvi'.  Note that it is currently
+    (2006-02-13) better to do this here than on the command line,
+    since the command line will use /local/bin, not /store/bin."
+fi
+
+# Consider extending this to also running configure?  Perhaps not,
+# since config.status is probably often just as good..?
+
+# if test -d utilities; then
+#     echo "Bootstrapping the utilities subdirectory."
+#     pushd utilities
+#     ./bootstrap $*
+#     popd
+# fi

@@ -1,0 +1,323 @@
+/********************************************************************
+ *   		master_stdio.cpp
+ *   Created on Fri Mar 17 2006 by Boye A. Hoeverstad.
+ *   
+ *   Stub to run master node using standard input/output
+ *******************************************************************/
+
+
+// slave_mpi.h must be included before stdio. See comment in slave_mpi.h
+#include "slave_mpi.h"
+
+#include "master_stdio.h"
+
+#include "master.h"
+#include "utils.h"
+#include <options.h>
+
+#include <iostream>
+#include <fstream>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+FeedbackError E_MASTERMAIN_LOOPSETUP("Evaluation loop setup failed");
+FeedbackError E_MASTERMAIN_LOOP("Evaluation loop failed");
+FeedbackError E_MASTERMAIN_SETUP("The master failed during system setup");
+
+
+using namespace std;
+
+std::string sMaster;
+pid_t master_pid = 0;
+
+
+
+/********************************************************************
+ *   Kill the master process if an interrupt is received.
+ *******************************************************************/
+static void signal_handler(int nSignal)
+{
+  Feedback fb("master killer");
+  KillProcess(master_pid, sMaster, fb);
+  exit(nSignal);
+}
+
+
+int RunEvalLoop(int nNumSlaves)
+{
+  
+//  extern bool bMaster;
+//  bMaster = true;
+  
+  Feedback fb("Master evaluation loop");
+
+  Master *pMaster;
+  if (DistributorLauncher::Instance().CreateDistributor(&pMaster, nNumSlaves))
+    return fb.Error(E_MASTERMAIN_LOOPSETUP) << "The \"CreateDistributor\" call failed.\n";
+
+  std::string sMasterInputMode, sMasterOutputMode, sBatchMode;
+  int nBatchSize, nMasterOutputLines, nNumIterations;
+  if (Options::Instance().Option("batch-mode", sBatchMode)
+      || Options::Instance().Option("batch-size", nBatchSize)
+      || Options::Instance().Option("iterations", nNumIterations)
+      || Options::Instance().Option("master-input-mode", sMasterInputMode)
+      || Options::Instance().Option("master-output-mode", sMasterOutputMode)
+      || Options::Instance().Option("master-output-lines", nMasterOutputLines))
+    return fb.Error(E_MASTERMAIN_LOOPSETUP) << ": Failed to get the necessary options.";
+
+  if (sMasterOutputMode == "SIMPLE")
+  {
+    std::stringstream ssMode;
+    ssMode << nMasterOutputLines;
+    sMasterOutputMode = ssMode.str();
+  }
+
+//   fb.Warning("DEBUG: Main taking a break...");
+//   sleep(10);
+//   fb.Warning("DEBUG: Break over!");
+
+
+
+
+
+  int nCtr = 0;
+  std::vector<std::string> data(10), results(10);
+
+  while (cin && nCtr++ < nNumIterations)
+  {
+    std::cerr << "Reading iteration " << nCtr - 1 << ".\n";
+
+    for (size_t nJob = 0; nJob < data.size(); nJob++)
+    {
+      std::getline(std::cin, data[nJob]);
+      std::cerr << "Read data line number " << nJob << ": " << data[nJob] << ".\n";
+    }
+    std::cerr << data.size() << " lines of data read.\n";
+
+    for (size_t i = 0; i < data.size(); i++)
+    {
+      std::stringstream s1(data[i]), s2;
+      int n;
+      s1 >> n;
+      s2 << n * 2;
+      results[i] = s2.str();
+    }
+
+    for (size_t i = 0; i < results.size(); i++)
+    {
+      cerr << "Writing result number " << i << ": " << results[i] << ".\n";
+      std::cout << results[i] << "\n" << std::flush;
+    }
+    std::cerr << results.size() << " results written.\n";
+  }
+
+
+
+
+//   int nCtr = 0;
+//   std::vector<std::string> data(10), results;
+
+//   while (cin && nCtr++ < nNumIterations)
+//   {
+
+//     fb.Info(2, "Reading job data from master...");
+
+//     if (sBatchMode == "EOF")
+//     {
+//       std::string sBatch;
+
+//       std::string sEOF, sLine;
+//       std::getline(std::cin, sEOF);
+
+//           // Lazy add the terminating endline, and don't add to the
+//           // last line. This because of problems with
+//           // std::stringstream and eof().  Using string instead of
+//           // stringstream leads to huge speed increase.
+//       while (std::getline(std::cin, sLine) && sLine != sEOF)
+//       {
+//         if (sBatch.empty())
+//           sBatch = sLine;
+//         else
+//           sBatch += "\n" + sLine;
+//       }
+//       std::stringstream ssBatch(sBatch);
+
+//       data.clear();
+//       int nJob = 0;
+//       while (!ssBatch.eof())
+//       {
+//         nJob++;
+//         std::string sJobData;
+//         if (ReadJobData(fb, ssBatch, sMasterOutputMode, sJobData))
+//           return fb.Error(E_MASTERMAIN_LOOP) << ": Failed to read job number " << nJob << " from master.";
+//         if (sJobData.empty())
+//           return fb.Error(E_MASTERMAIN_LOOP) << ": Job number " << nJob << " contained no data when read from master.";
+//         data.push_back(sJobData);
+//       }
+
+//     }
+//     else if (sBatchMode == "SIMPLE")
+//     {
+//       data.resize(nBatchSize);
+
+//       for (size_t nJob = 0; nJob < data.size(); nJob++)
+//         if (ReadJobData(fb, std::cin, sMasterOutputMode, data[nJob]))
+//           return fb.Error(E_MASTERMAIN_LOOP) << ": Failed to read job number " << nJob << " from master.";
+//     }
+//     else
+//       return fb.Error(E_MASTERMAIN_LOOP) << ". Unknown batch-mode: " << sBatchMode << ". Accepted values are EOF and SIMPLE.";
+
+//     fb.Info(2) << "Read " << data.size() << " jobs from master via stdin, now sending data for evaluation...\n";
+//     results.resize(data.size());
+
+//     if (pMaster->Evaluate(data, results))
+//       return fb.Error(E_MASTERMAIN_LOOP) << "Distributed evaluation failed.";
+
+//     fb.Info(2, "Results received! Writing results to master...\n");
+
+//     for (size_t nJob = 0; nJob < results.size(); nJob++)
+//     {
+// //      cerr << "Writing result " << nLine << ": " << results[nLine] << ".\n";
+//       if (WriteJobData(fb, std::cout , sMasterInputMode, results[nJob]))
+//         return fb.Error(E_MASTERMAIN_LOOP) << ": Failed to write results to master.";
+//     }
+
+//     fb.Info(2) << "Wrote " << results.size() << " results to master.\n";
+
+//   }
+  
+  fb.Info(1, "Simulation complete. Shutting down slaves...");
+  DistributorLauncher::Instance().DestroyDistributor(pMaster);
+  fb.Info(1, "Evaluation Finished.");
+  return 0;
+}
+
+
+
+int 
+master_main(int argc, char *argv[])
+{
+//   std::cerr << "WARNING: Main taking a break at the very beginning. Pid is " << getpid() << "\n";
+//   sleep(10);
+//   std::cerr << "Break over!";
+
+  Feedback fb("Master main");
+  int nInfoLevel;
+  std::string sInfoShow, sInfoHide;
+  if (Options::Instance().Option("verbosity", nInfoLevel)
+      || Options::Instance().Option("verbosity-showonly", sInfoShow)
+      || Options::Instance().Option("verbosity-dontshow", sInfoHide))
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Unable to get system verbosity options.";
+  fb.SetInfoLevel(nInfoLevel);
+  fb.SetShowHide(sInfoShow, sInfoHide);
+
+  std::string sMasterArgs;
+  if (Options::Instance().Option("master-program", sMaster)
+      || Options::Instance().Option("master-arguments", sMasterArgs))
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Unable to get master program name and/or arguments from options.";
+
+  fb.Info(1) << "Distributor master node loaded with pid " << getpid() << " and thread id " << pthread_self << ".";
+
+      // Create two pipes, input pipe and output pipe, and connect to
+      // streams.  For Pvm, this is necessary since we fork later
+      // on. For MPI, we just do it to get blocking on read from the
+      // OS.
+  int nPipeInput[2], nPipeOutput[2];
+  ifstream pipeInputRead, pipeOutputRead;
+  ofstream pipeInputWrite, pipeOutputWrite;
+
+//   fb.Warning("Main taking a break before CreatePipe...");
+//   sleep(10);
+//   fb.Warning("Break over!");
+
+  if (CreatePipe(nPipeInput)
+      || CreatePipe(nPipeOutput)
+      || ReplaceStreamFd(pipeInputRead, pipeInputWrite, nPipeInput)
+      || ReplaceStreamFd(pipeOutputRead, pipeOutputWrite, nPipeOutput))
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Unable to set up communication with message router";
+
+      // Send write end of output pipe and read end of input pipe to message central
+  MessageRouter::Instance().SetIOChannels(&pipeInputRead, &pipeOutputWrite);
+  if (MessageRouter::Instance().StartReceiver())
+    return 1;
+    
+  fb.Info(3, "Message router loaded.");
+
+//   fb.Warning("Main taking a break...");
+//   sleep(5);
+//   fb.Warning("Break over!");
+
+      // Send read end of output pipe to MPISender.
+  MPISender sender(&argc, &argv, &pipeOutputRead);
+  int nNumSlaves = sender.GetNumSlaves();
+  if (sender.Start())
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Failed to launch MPI sender thread.\n";
+
+//   fb.Info(1, "MPI sender loaded.");
+//   fb.Warning("DEBUG: Main taking a break...");
+//   sleep(5);
+//   fb.Warning(1, "Break over!");
+
+      // Send write end of input pipe to MPIReceiver.
+  MPIReceiver receiver(&pipeInputWrite, sender);
+  if (receiver.Start())
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Failed to launch MPI receiver thread.\n";
+
+  fb.Info(2, "MPI connection channels loaded.  Starting evaluation loop...");
+
+//   fb.Warning("DEBUG: Main taking a break...");
+//   sleep(5);
+//   fb.Warning("DEBUG: Break over!");
+
+      // Connect to master as the last thing to do before evaluating,
+      // to avoid killing it if any of the above processing fails.
+  fb.Info(2) << "Connecting to master " << sMaster << "...";
+
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+
+//   fb.Warning("DEBUG: Main taking a break...");
+//   sleep(10);
+//   fb.Warning("DEBUG: Break over!");
+
+  if (ConnectProcess(sMaster, sMasterArgs, &std::cin, &std::cout, 0, &master_pid))
+    return fb.Error(E_MASTERMAIN_SETUP) << ": Failed to launch master! Master program was \"" << sMaster << "\".";
+
+  fb.Info(2) << "Successfully connected to master.";
+
+      // Only kill the master process if something goes wrong,
+      // otherwise let it die a natural death.
+  if (int nRet = RunEvalLoop(nNumSlaves))
+  {
+    KillProcess(master_pid, sMaster, fb);
+    return nRet;
+  }
+
+//       // Sleep to see if the slaves will go down because we leave the mpi subsystem time enough to pass on TERMINATE messages...
+//   fb.Warning("DEBUG: Main taking a break...");
+//   sleep(10);
+//   fb.Warning("DEBUG: Break over!");
+
+  fb.Info(2, "Evaluation loop complete.  Waiting for message passing subsystem to shut down..");
+  pthread_join(receiver.GetThreadId(), 0);
+  fb.Info(2, "MPI message receiver stopped and joined.");
+  pthread_join(sender.GetThreadId(), 0);
+  fb.Info(2, "MPI message sender stopped and joined.");
+  pthread_join(MessageRouter::Instance().GetReceiverThreadId(), 0);
+  fb.Info(2, "Message router stopped and joined.  Waiting for master program to finish.");
+  pid_t waitRet = wait(0);
+  if (waitRet != master_pid)
+  {
+    int nSleep = 30;
+    fb.Warning() << "Failed to wait for master ('wait' system call returned " 
+                 << waitRet << " instead of " << master_pid << " as expected)."
+                 << " Will pause for " << nSleep << " seconds before going down...";
+    sleep(nSleep);
+  }
+  else
+    fb.Info(1, "Distributed evaluation complete.");
+
+  return 0;
+}

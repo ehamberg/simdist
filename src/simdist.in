@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ $# -eq 0 || "$1" == "--help" ]]; then
+    echo "This is a script to invoke @SIMDISTMPIBASE@ under MPI. @SIMDISTMPIBASE@ --help gives:"
+    @SIMDISTMPI@ --help
+else
+    mpiexec @SIMDISTMPI@ "$@"
+fi
+

@@ -1,0 +1,24 @@
+Kill child process (master and/or child) if the distribution system
+fails.  Perhaps by installing clean-up hook in Feedback::Error?
+Consider operator() and operator binding.
+
+
+OSX/Darwin:
+Fix configure.in to check for/include/have option to include /opt/local/include and /opt/local/lib.  
+
+At the moment, configure.in must be run with CPPFLAGS='-I/opt/local/include' LDFLAGS='-L/opt/local/lib'.
+
+-------------
+
+The mpiexec of LAM/MPI does not correctly pass on quoted
+arguments; the quotes are stripped off.  This means that if you
+send --arg='a short sentence' to simdist-mpi via LAM's mpirun,
+simdist-mpi will in fact receive 3 arguments: '--arg=a', 'short',
+and 'sentence'.  The problem is fixed in OpenMPI, which
+supercedes LAM/MPI.
+
+--------------
+
+I got the license setup from here:
+http://www.fsf.org/licensing/licenses/gpl-howto.html
+"How to use the GNU licenses for your own software"

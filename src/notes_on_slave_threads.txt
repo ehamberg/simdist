@@ -1,0 +1,126 @@
+What are the possible situations for the blackboard and the slave
+clients?  And for each of these, where is it reasonable to have a
+slave client thread waiting for work? 
+
+#  Blackboard (B)  Free Slaves (S)      Block on B?        Block on S?
+----------------------------------------------------------------------
+1  Empty           All                  Yes                No
+2  Not Empty       All                  No (dist. immed.)  No
+3  Empty           Some                 Yes                Yes
+4  Not Empty       Some                 No (dist. immed.)  Yes
+5  Empty           None                 No (no point)      Yes
+6  Not Empty       None                 No (no point)      Yes
+
+Of the above, one sitation requires two waiting threads: Empty
+blackboard, some free slave servers available.  One thread must
+thus be waiting for new jobs to arrive on the empty queue, the
+other thread waits for incoming results on the busy slaves.
+
+Given that we need two threads, how should they behave to require
+a minimum of synchronization?
+
+Option 1: separate "sender" and "receiver" threads.  Needs a
+condition for when no slaves are ready but work is waiting.
+Possibly also a condition for the receiver thread when all slaves
+are free, unless it can simply wait for new results even though
+no jobs have been posted (it probably can).
+
+Option 2: Threads only block when they have to, the two threads
+both do full loops.  If so, which threads are where when?
+
+#  Blackboard (B)  Free Slaves (S)      Blocked on B       Blocked on S
+-----------------------------------------------------------------------
+1  Empty           All                  2                  0
+2  Not Empty       All                  0                  0
+3  Empty           Some                 1                  1
+4  Not Empty       Some                 0                  1
+5  Empty           None                 0                  2
+6  Not Empty       None                 0                  2
+
+* Initial situation is #1.  
+
+* Both threads wake up simultaneously, but only one gains access
+to the blackboard.  
+
+* Threads only read the blackboard when slave servers
+are available (ref cases 5 and 6, requires that first thread
+doesn't use up all slaves).  This holds if 1) each thread only
+takes jobs for one slave each time it steals off the blackboard,
+and 2) only one thread is woken up when results arrive in states 5/6.
+
+* A thread with access to the blackboard should:
+  - send a job
+  - check for thread listening for results.  If none, then block (3/4).
+  - check for more available slave servers.  If none, then block (5/6).
+  - loop.  If blackboard empty, then block (3).
+
+* When results come in, the system is in states 3-6.
+
+* What happens after state 3 when results arrive?  Thread 1
+  should be on the blackboard.  Thread 2 wakes up to write
+  results, but must then RETURN to the slave queue if jobs are
+  still being processed.
+
+* Situations to avoid are thus: 
+  - jobs arrive AND there are free slaves, but both threads are
+  blocked on S.
+  - results arrive and there are no threads on S.
+
+  -> We need to keep track of busy/avail slave servers, and
+     blocked slaves.
+
+
+
+Tentative loop:
+         
+- Wait for first jobs to arrive on blackboard
+- Take a job, send to a slave
+- Check for block on slaves:
+  - if (no thread already on slaves || all servers working)
+       block
+    else
+       don't block
+- Want to acquire blackboard?
+  - if (no thread on slaves && working servers)
+       yes
+    else
+       no
+
+With synchro:
+    Acquire blackboard
+  Take job (may involve waiting for work) 
+    Release blackboard
+    Acquire slave busy/avail list
+  Send job
+  Update number of busy/avail slaves
+  Prepare to block if (no thread already on slaves || all servers working)
+  Update number of waiting slaves
+    Release slave busy/avail list
+  Optional 
+  {
+    Wait for results
+      Acquire slave busy/avail list
+    Update number of busy/avail slaves
+    Update number of waiting slaves
+      Release slave busy/avail list
+    Return results to blackboard
+  }
+
+... horrible stuff.
+
+Returning to option 1, separate "sender" and "receiver" threads.
+
+
+#  Blackboard (B)  Free Slaves (S)      Sender blocks      Receiver blocks
+----------------------------------------------------------------------
+1  Empty           All                  B                  S
+2  Not Empty       All                  No                 S
+3  Empty           Some                 B                  S
+4  Not Empty       Some                 No                 S
+5  Empty           None                 B                  S
+6  Not Empty       None                 S                  S
+
+The receiver performs a simple read/post loop.
+
+The sender blocks on the queue until it has a job.  It then
+blocks on the slave side until resources are available.  

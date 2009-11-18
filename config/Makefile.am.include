@@ -1,0 +1,4 @@
+MAINTAINERCLEANFILES    = Makefile.in
+
+# Add include subdirectory to search path in all source directories.
+AM_CPPFLAGS = -I$(top_srcdir)/include
