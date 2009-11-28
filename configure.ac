@@ -6,10 +6,6 @@
 # Run as follows for debug build:
 # ./configure --prefix=$HOME/local 
 
-# Obsolete:
-# ./configure --prefix=$HOME/local CXXFLAGS=-I$HOME/local/include LDFLAGS="-L$HOME/local/lib -Wl,--rpath -Wl,$HOME/local/lib" --disable-static --enable-shared --enable-release
-# ./configure --prefix=$HOME/local CXXFLAGS=-I$HOME/local/include LDFLAGS="-L$HOME/local/lib -Wl,--rpath -Wl,$HOME/local/lib" --disable-static --enable-shared
-
 # If compiling with an old Intel compiler (< ver 9), and the
 # utilities library is built with g++: Build utilities
 # statically, and run configure with the additional option
@@ -22,7 +18,7 @@
 
 dnl Autoconf requirements
 AC_PREREQ(2.50)
-AC_INIT([simdist], [1], [hoversta at idi])
+AC_INIT([simdist], [1], [hoversta at idi.ntnu.no])
 
 # AC_CONFIG_AUX_DIR must be called before AM_INIT_AUTOMAKE
 AC_CONFIG_AUX_DIR([config])

@@ -121,12 +121,14 @@ int main(int argc, char *argv[])
   {
     cerr << "Usage: " << argv[0] << " [options]\n"
          << "Write to standard output each line of input multiplied by a factor.  \n\nOptions:\n"
-         << "--factor | -f k      Multiply each input line by k. Default " << nFactor << ".\n"
-         << "--job-[in|out]put-mode | j/o mode Expect/Write input/output of type mode.  Supported modes are 'eof' and 'simple'."
-         << "--signal | -s n      Report and ignore signal n.\n"
-         << "--pause | -p         Take breaks, work slowly.\n"
-         << "--verbose | -v       Print lots of output.\n";
-
+         << "--factor=k | -f k  Expect each line to be multiplied by k on return. Default " << nFactor << ".\n"
+         << "--job-input-mode=mode | -j mode \n"
+         << "                   Expect input of type mode, either 'eof' or 'simple'.\n"
+         << "--job-output-mode=mode | -o mode \n"
+         << "                   Write output of type mode, either 'eof' or 'simple'.\n"
+         << "--signal=n | -s n  Report and ignore signal n.\n"
+         << "--pause | -p       Take breaks, work slowly.\n"
+         << "--verbose | -v     Print lots of output.\n";
     return 1;
   }
 
@@ -148,13 +150,31 @@ int main(int argc, char *argv[])
   {
     string sEOF1, sEOF2, sChomp;
     if (inputMode == eof)
+    {
       getline(cin, sEOF1);
+      if (!cin)
+        break;
+    }
     else 
       assert(inputMode == simple);
 
     int nNum;
     cin >> nNum;
+    if (cin.eof())
+      break;
+
+    if (cin.fail())
+    {
+      cerr << "Failed to convert the last read input into an integer.\n";
+      exit(1);
+    }
+
     getline(cin, sChomp);
+    if (!sChomp.empty())
+    {
+      cerr << "Error: Unexpected data at end of line: " << sChomp << "\n";
+      exit(1);
+    }
 
     if (inputMode == eof)
     {
@@ -182,15 +202,15 @@ int main(int argc, char *argv[])
       cerr << argv[0] << " (" << nPid << ") now returns the number " 
            << nNum * nFactor << " (" << nNum << "*" << nFactor << ").\n" << flush;
 
-      if (outputMode == eof)
-        cout << "EOF\n";
-      else 
-        assert(outputMode == simple);
-      cout << nNum * nFactor << "\n" << flush;
-      if (outputMode == eof)
-        cout << "EOF\n" << flush;
-      else 
-        assert(outputMode == simple);
+    if (outputMode == eof)
+      cout << "EOF\n";
+    else 
+      assert(outputMode == simple);
+    cout << nNum * nFactor << "\n" << flush;
+    if (outputMode == eof)
+      cout << "EOF\n" << flush;
+    else 
+      assert(outputMode == simple);
   }
   return 0;
 }

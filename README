@@ -1,0 +1,241 @@
+CONTENTS:
+1. Overview
+2. Installation
+3. Usage
+
+1. OVERVIEW
+------------------------------------------------------------
+
+Simdist is a tool to distribute work between a master and a
+number of slaves.  
+
+Simdist was originally written with evolutionary computation in
+mind.  Here, the master runs the evolutionary loop, sends genomes
+off to the slaves for evaluation, and receives fitness values
+that are used to produce the next generation of genomes.
+However, it should be equally applicable to any other
+master-slave scenario in which the slaves are essentially
+identical, but typically perform different tasks based on the
+input they receive.
+
+The main intention with Simdist is that it should allow a
+developer to harness the computing power of a parallel
+environment, i.e. a cluster or even a standard workstation with a
+multi-core CPU, without having to know anything about
+parallelization libraries, communication protocols, etc.
+
+Instead, Simdist communicates with the master and slave
+applications through standard input and output, just like so many
+other UNIX utilities (e.g. cat, sed, less, etc).  The developer
+will thus write a master application that simply prints genomes
+(i.e. task descriptions) to standard output, and then expects to
+be able to read fitness values (i.e. results) from standard
+input.  Likewise, the slave application should read genomes from
+standard input, and print fitnesses to standard output.  Simdist
+will take care of distributing the different genomes and fitness
+values among the slaves.
+
+When using clusters, the development often happens on a
+workstation, and only after the system runs more or less smoothly
+is it deployed on the cluster.  Moreover, bugs will be discovered
+that must be fixed, once again on the workstation.  This software
+package contains a utility called 'pipeio', that hooks the master
+and the slave together, such that the system runs in serial
+mode.  pipeio basically mimicks the standard unix pipe (|), only
+it goes both ways.  So if the two programs are called 'master'
+and 'slave', the command:
+
+$ pipeio master slave
+
+can be thought of as both
+
+$ master | slave
+
+and 
+
+$ slave | master
+
+at the same time.
+
+Finally, the utility 'logio' logs the input and/or output to a
+process to a file.  This can be very handy both for debugging and
+for post processing of data.
+
+
+2. INSTALLATION
+------------------------------------------------------------
+
+The following instructions are to be typed in on the command
+line.  The dollar sign ($) indicates the prompt and should not be
+typed in).
+
+Since you are reading this, you have most probably already
+unpacked the downloaded archive.  If this is not the case, unpack
+Simdist by issuing the following command:
+
+$ tar xvfz simdist-<version>.tar.gz
+
+where '<version>' should be replaced with the current version
+number, e.g. '1'.  Then cd into the newly created directory and
+continue with the installation.
+
+To install as root:
+
+$ ./configure
+$ make 
+$ make install
+
+If you do not have root access, which you normally do not have if
+you are a normal user of a computer cluster, Simdist can be
+installed locally.  To do this, create a directory where Simdist
+can be installed, say ~/local, and then direct the configure
+script to put the installed files under this directory.  Assuming
+that ~/local does not yet exist, the entire process then becomes:
+
+$ mkdir $HOME/local
+$ ./configure --prefix=$HOME/local
+$ make 
+$ make install
+
+In this case, the installation command will create the
+subdirectories 'bin', 'include', and 'lib' under '~/local', and
+install a number of files into these directories.  This may also
+be a good idea if you want to try out Simdist without installing
+to an area where other programs are already placed.
+
+Simdist is meant to operate in a POSIX-compliant MPI environment,
+as it uses MPI send data between the master and the slaves.  MPI
+is not necessary to install the tools 'pipeio' and 'logio'.  To
+do this, pass --disable-parallel to the configure script:
+
+$ ./configure --prefix=$HOME/local --disable-parallel
+$ make 
+$ make install
+
+Finally, you can uninstall Simdist by issuing:
+
+$ make uninstall
+
+
+3. USAGE
+------------------------------------------------------------
+
+This section is meant to give you a quick idea of how your
+program can be made to work with Simdist.  This distribution also
+comes with a number of demo programs in various languages,
+described at the end of this section.
+
+As mentioned in the introduction, the basic idea is to create a
+master process that contains the following loop:
+
+do until termination:
+  write n genomes (or any other type of job description) to standard output
+  read n fitnesses (or any other type of result) from standard input
+done
+
+and a slave that performs the following loop:
+
+while input is available:
+  process input
+  print output
+
+The following steps suggest a process to get things working.  The
+list is extensive to give you an idea of the process.  Many of
+these steps may be skipped, but they might be useful for
+debugging.  It may also be an idea to try some of them out on the
+demo programs.
+
+1. Decide on a way of printing your genomes.  The most
+   straightforward is to put everything on a single line, but
+   other options are possible.  More about this below.
+
+2. Write your master program, and run it to see that the output
+   looks as expected.
+
+3. Save the output from the master to a file and start work on
+   the slave.  For an EA, set population size to small, say 10,
+   and run 'master >genomes.txt'.  The file 'genomes.txt' will
+   now typically contain 10 lines of text.
+
+4. Write a slave that can read the genomes and test it by feeding
+   it the genomes file: 'slave <genomes.txt'.  When done like
+   this, the slave program should write ten lines of fitness
+   values, AND THEN TERMINATE when it reaches the end of the file
+   'genomes.txt'.
+
+5. Do it the other way around, to see that the master correctly
+   reads fitness values: 'slave <genomes.txt >fitnesses.txt', and
+   then 'master <fitnesses.txt'.  The program 'master' should now
+   produce 20 lines of output, since it first prints 10 genomes,
+   then reads the fitnesses for these, and finally prints the 10
+   genomes of the next generation.
+
+6. Try the two together.  First by 'master | slave', which should
+   produce 10 fitness values, then 'pipeio master slave', which
+   should run the entire evolution for the desired number of
+   generations.  It's a good idea to have 'master' print status
+   messages to standard error, so you can see that the program
+   progresses as expected.  
+
+   If any of the programs take arguments, you must wrap the
+   commands to pipeio in apostrophes or quotation marks, e.g.
+   $ pipeio 'master --pop-size=10' "slave --speed=superfast"
+
+7. Run them in parallel:
+   $ simdist --master='master --pop-size=10' --slave=slave
+
+IMPORTANT:
+
+There is, of course, one snag: when moving from serial to
+parallel processing, Simdist must be able to tell your genomes
+apart, otherwise it will not be able to distribute them correctly
+to the slaves.  Simdist accepts four ways of doing this:
+
+- Every output spans a fixed number of lines.  By default,
+  Simdist expects each genome to occupy one line.  If your
+  genomes always use 3 lines, pass the following option to
+  Simdist: --master-output-mode='SIMPLE 3'
+
+- Each genome is wrapped in tags.  The tag can be anything, but
+  it must be a single line of text.  Use --master-output-mode=EOF
+  for this.  The following is an example of three perfectly valid
+  genomes:
+  EOF
+  1 0 1 1 0 1
+  EOF
+  Hello,
+  1 0 1 1
+  1 0 0 0 0 1
+  1 1 0
+  Hello,
+  how are you  
+  1 1 1 0 0 1 1 0 
+  1 0 1 0 0 1 1 0 
+  how are you
+
+- The genomes are binary strings, prepended by a 4-byte integer
+  indicating the length (in bytes) of the genome.  Use
+  --master-output-mode=BYTES.
+
+- The genomes are binary and wrapped in EOF-markers taking a
+  predefined number of bytes, e.g. 5:
+  --master-output-mode='BIN-EOF 5'.
+
+We suggest using one of the two text modes, as this makes
+debugging and post processing much easier.
+
+
+Demos:
+
+Demos for Matlab, Python and Lisp are found under the 'demos'
+directory.  In the 'src' directory, you'll find the programs
+'test-master', 'test-slave', 's-test-master.sh' and
+'s-test-slave.sh'.  The two former are C++ programs, while the
+two latter are shell scripts.  
+
+A good place to start may be either the C++ programs in the 'src'
+directory, or the Python programs in the 'demos' directory.
+
+For 'test-master' and 'test-slave', you can type 
+'./test-master --help' to get a brief usage text.
+

@@ -120,11 +120,15 @@ int main(int argc, char *argv[])
          << "Write lines of numbers on separate lines to stdout.  "
          << "Expect them returned multiplied by factor on stdin.  "
          << "Repeat the process for a given number of times.  \n\nOptions:\n"
-         << "--lines | -l n       Write n lines of numbers at each iteration. Default " << nNumLines << ".\n"
-         << "--factor | -f k      Expect each line to be multiplied by k on return. Default " << nFactor << ".\n"
-         << "--iterations | -i n  Repeat the write/read process n times. Default " << nNumIterations << ".\n"
-         << "--job-[in|out]put-mode | j/o mode Expect/Write input/output of type mode.  Supported modes are 'eof' and 'simple'."
-         << "--signal | -s n      Report and ignore signal n.\n";
+         << "--lines=n | -l n   Write n lines of numbers at each iteration. Default " << nNumLines << ".\n"
+         << "--factor=k | -f k  Expect each line to be multiplied by k on return. Default " << nFactor << ".\n"
+         << "--iterations=n | -i n \n"
+         << "                   Repeat the write/read process n times. Default " << nNumIterations << ".\n"
+         << "--job-input-mode=mode | -j mode \n"
+         << "                   Expect input of type mode, either 'eof' or 'simple'.\n"
+         << "--job-output-mode=mode | -o mode \n"
+         << "                   Write output of type mode, either 'eof' or 'simple'.\n"
+         << "--signal=n | -s n  Report and ignore signal n.\n";
     return 1;
   }
 
