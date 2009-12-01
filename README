@@ -103,6 +103,20 @@ install a number of files into these directories.  This may also
 be a good idea if you want to try out Simdist without installing
 to an area where other programs are already placed.
 
+If you install to a non-standard location, e.g. ~/local/, you
+need to make sure that the 'bin'-directory, e.g. ~/local/bin, is
+in your search path, otherwise the shell will not find the
+simdist command.  You can check the search path by typing:
+
+$ echo $PATH
+
+If the desired directory is not there, you may add it as follows:
+
+$ export PATH=$HOME/local/bin:$PATH
+
+To do this every time a command prompt is opened, add the above
+line to the file ~/.bashrc. 
+
 Simdist is meant to operate in a POSIX-compliant MPI environment,
 as it uses MPI send data between the master and the slaves.  MPI
 is not necessary to install the tools 'pipeio' and 'logio'.  To
