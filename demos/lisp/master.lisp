@@ -16,7 +16,13 @@
 ;; along with Simdist.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-;; Minimal lisp master for demoing Simdist.  See create-config.sh for usage.
+;; Minimal lisp master for demoing Simdist. See create-config.sh
+;; for usage.  Short hints:
+;;
+;; lisp -quiet -load stdio_master.lisp
+;;     ---- or ----
+;; sbcl --noinform --noprint --load master.lisp
+;;
 
 
 ;; Different lisps have different quit functions.
@@ -25,7 +31,7 @@
 
 (defvar pop-size 300)
 
-(defvar genome-length 13)
+(defvar genome-length 100)
 
 (defvar generations 100)
 
@@ -33,8 +39,9 @@
 
 (defvar crossover-rate 75)
 
-(defvar max-gene-val 50)
+;; min-gene-val is inclusive, max-gene-val is not.
 (defvar min-gene-val 0)
+(defvar max-gene-val 2)
 
 (defun crossover (rate genome1 genome2)
 ;;  (format t "crossing ~a with ~a~%" genome1 genome2)
@@ -72,24 +79,30 @@
           (p-iter '())))
   
 
-(defun evaluate-population (pop)
-  (labels ((print-gene (stream g)
-                       (unless (null g)
-                         (format stream "~a " (car g))
-                         (print-gene stream (cdr g))))
-           (print-pop (p)
-                      (unless (null p)
-                        (format t "~a~%" (car p))
-                        ;;      (format t #'print-gene (car p))
-                        (print-pop (cdr p))))
-           (read-fitnesses (f)
-                           (if (= (length f) (length pop))
-                               (reverse f)
-                             (let ((l (read)))
-                               (read-fitnesses (cons l f))))))
+;; (defun evaluate-population (pop)
+;;   (labels ((print-gene (stream g)
+;;                        (unless (null g)
+;;                          (format stream "~a " (car g))
+;;                          (print-gene stream (cdr g))))
+;;            (print-pop (p)
+;;                       (unless (null p)
+;;                         (format t "~a~%" (car p))
+;;                         ;;      (format t #'print-gene (car p))
+;;                         (print-pop (cdr p))))
+;;            (read-fitnesses (f)
+;;                            (if (= (length f) (length pop))
+;;                                (reverse f)
+;;                              (let ((l (read)))
+;;                                (read-fitnesses (cons l f))))))
 
-          (print-pop pop)
-          (read-fitnesses '())))
+;;           (print-pop pop)
+;;           (read-fitnesses '())))
+
+(defun evaluate-population (p)
+  (loop for i in p do (format t "~a~%" i))
+  (loop repeat (length p) 
+    collect (read)))
+
 
 (defun select-parent (pop fitn)
   (let* ((len (length pop))
