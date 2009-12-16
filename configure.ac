@@ -18,7 +18,7 @@
 
 dnl Autoconf requirements
 AC_PREREQ(2.50)
-AC_INIT([simdist], [1], [hoversta at idi.ntnu.no])
+AC_INIT([simdist], [1.1], [hoversta at idi.ntnu.no])
 
 # AC_CONFIG_AUX_DIR must be called before AM_INIT_AUTOMAKE
 AC_CONFIG_AUX_DIR([config])

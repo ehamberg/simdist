@@ -1,1 +1,1 @@
-/usr/share/libtool/config/ltmain.sh
+/home/hoversta/local/share/libtool/config/ltmain.sh
