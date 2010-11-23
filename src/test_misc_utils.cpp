@@ -42,6 +42,7 @@
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include <cstring>
+#include <cstdio>
 
 using namespace std;
 
